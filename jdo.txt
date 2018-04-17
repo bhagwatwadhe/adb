@@ -1,0 +1,143 @@
+
+Product ::
+import javax.jdo.annotations.IdGeneratorStrategy;
+import javax.jdo.annotations.PersistenceCapable;
+import javax.jdo.annotations.Persistent;
+import javax.jdo.annotations.PrimaryKey;
+
+@PersistenceCapable
+public class Product {
+
+    @PrimaryKey
+    @Persistent(valueStrategy = IdGeneratorStrategy.INCREMENT)
+    long id;
+    String name = null;
+    String description = null;
+    double price = 0.0;
+
+    public Product(String name, String desc, double price) {
+        this.name = name;
+        this.description = desc;
+        this.price = price;
+    }
+}
+
+
+Inventory ::
+
+import java.util.HashSet;
+import java.util.Set;
+import javax.jdo.annotations.PersistenceCapable;
+import javax.jdo.annotations.PrimaryKey;
+
+@PersistenceCapable
+public class Inventory {
+
+    @PrimaryKey
+    String name = null;
+    @SuppressWarnings({"rawtypes", "unchecked"})
+    Set<Product> products = new HashSet();
+
+    public Inventory(String name) {
+        this.name = name;
+    }
+
+    public Set<Product> getProducts() {
+        return products;
+    }
+}
+
+
+
+persistence.xml:
+
+
+<?xml version="1.0" encoding="UTF-8" ?>
+<persistence xmlns="http://java.sun.com/xml/ns/persistence"
+    xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+    xsi:schemaLocation="http://java.sun.com/xml/ns/persistence http://java.sun.com/xml/ns/persistence/persistence_1_0.xsd" version="1.0">
+
+    <persistence-unit name="TEST">
+        <mapping-file>C:\Users\Student\Desktop\Workspace\roll64\JDO\src\package.jdo</mapping-file>
+         <properties>            <property name="javax.jdo.option.ConnectionURL" value="cassandra:"/>            <property name="javax.jdo.mapping.Schema" value="keyspace1"/>            <property name="datanucleus.schema.autoCreateAll" value="true"/>         </properties> 
+    </persistence-unit>
+</persistence>
+
+
+MyApp.java::
+
+import java.util.Iterator;
+import java.util.List;
+import javax.jdo.JDOHelper;
+import javax.jdo.PersistenceManager;
+import javax.jdo.PersistenceManagerFactory;
+import javax.jdo.Query;
+import javax.jdo.Transaction;
+
+public class MyApp {
+
+    public static void main(String[] args) throws NullPointerException{//TEST is the persistent unit name 
+    	PersistenceManagerFactory pmf = JDOHelper.getPersistenceManagerFactory("TEST"); 
+    	PersistenceManager pm = pmf.getPersistenceManager(); 
+    	Transaction tx=pm.currentTransaction(); 
+    	try {    
+    		tx.begin();   
+    		Inventory inv = new Inventory("My Inventory");
+        Product product = new Product("Sony ", "A standard discman from Sony", 49.99);
+        Product product1 = new Product("Sony xperia z1", "A smart phone", 149.99);
+        inv.getProducts().add(product);
+        inv.getProducts().add(product1);
+        pm.makePersistent(inv);
+        Query<?> q = pm.newQuery("SELECT FROM " + Product.class.getName() + " WHERE price < 150.00 ORDER BY price ASC");               
+        // add some more JDOQL queries here    
+        List<Product> execute = (List<Product>) q.execute();
+		List<Product> products = execute;  
+        Iterator<Product> iter = products.iterator();   
+        while (iter.hasNext()) 
+        {    
+        	Product p = iter.next();    
+        	System.out.println("Name: "+p.name+"\t Description: "+p.description+"\tPrice: "+p.price);    
+        	}         
+        tx.commit(); 
+        }
+    finally 
+    {    
+    	if 
+    	(tx.isActive())
+    	{        tx.rollback(); 
+    	}    pm.close(); 
+    	} } }
+
+
+output::
+
+log4j:WARN No appenders could be found for logger (DataNucleus.General).
+log4j:WARN Please initialize the log4j system properly.
+
+
+cqlsh:keyspace1> select * from product;
+
+ id | description                  | name           | price
+----+------------------------------+----------------+--------
+ 81 |                A smart phone | Sony xperia z1 | 149.99
+ 12 | A standard discman from Sony |   Sony Discman |  49.99
+ 71 |                A smart phone | Sony xperia z1 | 149.99
+ 52 | A standard discman from Sony |          Sony  |  49.99
+ 41 |                A smart phone | Sony xperia z1 | 149.99
+ 51 |                A smart phone | Sony xperia z1 | 149.99
+ 21 |                A smart phone | Sony xperia z1 | 149.99
+ 91 |                A smart phone | Sony xperia z1 | 149.99
+ 62 | A standard discman from Sony |          Sony  |  49.99
+ 82 | A standard discman from Sony |          Sony  |  49.99
+ 61 |                A smart phone | Sony xperia z1 | 149.99
+ 32 | A standard discman from Sony |          Sony  |  49.99
+  0 |                A smart phone | Sony xperia z1 | 149.99
+ 11 |                A smart phone | Sony xperia z1 | 149.99
+ 22 | A standard discman from Sony |          Sony  |  49.99
+ 72 | A standard discman from Sony |          Sony  |  49.99
+  1 | A standard discman from Sony |   Sony Discman |  49.99
+ 92 | A standard discman from Sony |          Sony  |  49.99
+ 31 |                A smart phone | Sony xperia z1 | 149.99
+ 42 | A standard discman from Sony |          Sony  |  49.99
+
+(20 rows)

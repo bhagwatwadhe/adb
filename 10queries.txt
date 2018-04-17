@@ -1,0 +1,77 @@
+
+
+1) Create Keyspace
+cqlsh> CREATE KEYSPACE users
+   ... WITH REPLICATION = { 'class' : 'SimpleStrategy', 'replication_factor' : 1
+ };
+2) Use Keyspace
+cqlsh> USE users;
+3) Create Table
+cqlsh:users> CREATE TABLE emp(
+         ...    emp_id int PRIMARY KEY,
+         ...    emp_name text,
+         ...    emp_city text,
+         ...    emp_sal varint,
+         ...    emp_phone varint
+         ...    );
+4) Insert
+cqlsh:users> INSERT INTO emp (emp_id, emp_name, emp_city,
+         ...    emp_phone, emp_sal) VALUES(1,'ram', 'Hyderabad', 9848022338, 50000);
+ cqlsh:users> INSERT INTO emp (emp_id, emp_name, emp_city,
+         ...    emp_phone, emp_sal) VALUES(2,'robin', 'Hyderabad', 9848022339, 40000);
+cqlsh:users> INSERT INTO emp (emp_id, emp_name, emp_city,
+         ...    emp_phone, emp_sal) VALUES(3,'rahman', 'Chennai', 9848022330, 45000);
+5) Select
+cqlsh:users> select * from emp;
+emp_id | emp_city  | emp_name | emp_phone  | emp_sal
+--------+-----------+----------+------------+---------
+      1 | Hyderabad |      ram | 9848022338 |   50000
+      2 | Hyderabad |    robin | 9848022339 |   40000
+      3 |   Chennai |   rahman | 9848022330 |   45000
+6) Create Index
+ cqlsh:users> CREATE INDEX name ON emp (emp_name);
+7) Drop Index
+cqlsh:users> drop index name;
+8) Update
+ cqlsh:users> UPDATE emp SET emp_city='Delhi',emp_sal=50000
+         ...    WHERE emp_id=2;
+cqlsh:users> select * from emp;
+ emp_id | emp_city  | emp_name | emp_phone  | emp_sal
+--------+-----------+----------+------------+---------
+      1 | Hyderabad |      ram | 9848022338 |   50000
+      2 |     Delhi |    robin | 9848022339 |   50000
+      3 |   Chennai |   rahman | 9848022330 |   45000
+9) Delete
+cqlsh:users> DELETE emp_sal FROM emp WHERE emp_id=3;
+cqlsh:users> select * from emp;
+ emp_id | emp_city  | emp_name | emp_phone  | emp_sal
+--------+-----------+----------+------------+---------
+      1 | Hyderabad |      ram | 9848022338 |   50000
+      2 |     Delhi |    robin | 9848022339 |   50000
+      3 |   Chennai |   rahman | 9848022330 |    null
+10) Describe Keyspace
+ cqlsh:users> DESCRIBE keyspaces;
+users          system_auth  demodb      dadcargate          system_traces
+system_schema  system       mykeyspace  system_distributed  fl_insurance_sample
+11) Alter Table
+ cqlsh:users>  ALTER TABLE emp DROP emp_sal;
+cqlsh:users> select * from emp;
+ emp_id | emp_city  | emp_name | emp_phone
+--------+-----------+----------+------------
+      1 | Hyderabad |      ram | 9848022338
+      2 |     Delhi |    robin | 9848022339
+      3 |   Chennai |   rahman | 9848022330
+12) Drop Table
+ cqlsh:users> ALTER TABLE emp
+         ... ADD emp_email text;
+cqlsh:users> select * from emp;
+emp_id | emp_city  | emp_email | emp_name | emp_phone
+--------+-----------+-----------+----------+------------
+      1 | Hyderabad |      null |      ram | 9848022338
+      2 |     Delhi |      null |    robin | 9848022339
+      3 |   Chennai |      null |   rahman | 9848022330
+(3 rows)
+
+
+
+

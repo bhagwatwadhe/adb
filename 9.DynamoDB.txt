@@ -1,0 +1,820 @@
+/***********************************************************
+Title:-Design database schemas and implement minimum 10 queries 
+            using DynamoDB Key-Value based database.
+Name:-Ankita Sonje
+Class:-BEIT
+Batch:-C
+Roll No:-60
+***********************************************************/
+
+// This CreateTable request will create the ImageTag table.
+var params = {
+    TableName: 'ImageTag',
+    KeySchema: [
+        {
+            AttributeName: 'Tag',
+            KeyType: 'HASH'
+        },
+        {
+            AttributeName: 'ImageId',
+            KeyType: 'RANGE'
+        }
+    ],
+    GlobalSecondaryIndexes: [{
+            IndexName: 'ImageId-index',
+            KeySchema: [
+                {
+                    AttributeName: 'ImageId',
+                    KeyType: 'HASH'
+                },
+                {
+                    AttributeName: 'Tag',
+                    KeyType: 'RANGE'
+                }
+            ],
+            Projection: {
+                ProjectionType: 'KEYS_ONLY'
+            },
+            ProvisionedThroughput: {
+                ReadCapacityUnits: 1,
+                WriteCapacityUnits: 1
+            }
+        }
+    ],
+    LocalSecondaryIndexes: [{
+            IndexName: 'VoteCount-index',
+            KeySchema: [
+                {
+                    AttributeName: 'Tag',
+                    KeyType: 'HASH'
+                },
+                {
+                    AttributeName: 'VoteCount',
+                    KeyType: 'RANGE'
+                }
+            ],
+            Projection: {
+                ProjectionType: 'ALL'
+            }
+        }
+    ],
+    AttributeDefinitions: [
+        {
+            AttributeName: 'Tag',
+            AttributeType: 'S'
+        },
+        {
+            AttributeName: 'ImageId',
+            AttributeType: 'S'
+        },
+        {
+            AttributeName: 'VoteCount',
+            AttributeType: 'N'
+        }
+    ],
+    ProvisionedThroughput:  {
+        ReadCapacityUnits: 1,
+        WriteCapacityUnits: 1
+    }
+};
+console.log("Creating the ImageTag table");
+dynamodb.createTable(params, function(err, data) {
+        if (err) ppJson(err); // an error occurred
+        else ppJson(data); // successful response
+        console.log("CreateTable returned");
+    });
+
+
+
+
+
+//loading data into table
+// This short program will load in a bunch of example data into the ImageTag table.
+
+// A map of image id to the tags to attach to the image.
+var images = {
+    'android.png': ['SDKs & Tools', 'Android'],
+    'appstream.png': ['Application Services', 'Amazon AppStream'],
+    'cli.png': ['SDKs & Tools', 'AWS CLI'],
+    'cloudformation.png': ['Deployment & Management', 'AWS CloudFormation'],
+    'cloudfront.png': ['Storage & CDN', 'Amazon CloudFront'],
+    'cloudsearch.png': ['Application Services', 'Amazon CloudSearch'],
+    'cloudtrail.png': ['Deployment & Management', 'AWS CloudTrail'],
+    'cloudwatch.png': ['Deployment & Management', 'Amazon CloudWatch'],
+    'data-pipeline.png': ['Analytics', 'AWS Data Pipeline'],
+    'direct-connect.png': ['Compute & Networking', 'AWS Direct Connect'],
+    'dotnet.png': ['SDKs & Tools', '.NET'],
+    'dynamodb.png': ['Database', 'Amazon DynamoDB'],
+    'ec2.png': ['Compute & Networking', 'Amazon EC2'],
+    'eclipse.png': ['SDKs & Tools', 'Eclipse'],
+    'elasticache.png': ['Database', 'Amazon ElastiCache'],
+    'elastic-beanstalk.png': ['Deployment & Management', 'AWS Elastic Beanstalk'],
+    'elb.png': ['Compute & Networking', 'Elastic Load Balancing'],
+    'emr.png': ['Analytics', 'Amazon EMR'],
+    'glacier.png': ['Storage & CDN', 'Amazon Glacier'],
+    'iam.png': ['Deployment & Management', 'AWS IAM'],
+    'ios.png': ['SDKs & Tools', 'iOS'],
+    'java.png': ['SDKs & Tools', 'Java'],
+    'kinesis.png': ['Analytics', 'Amazon Kinesis'],
+    'nodejs.png': ['SDKs & Tools', 'Node.js'],
+    'opsworks.png': ['Deployment & Management', 'AWS OpsWorks'],
+    'php.png': ['SDKs & Tools', 'PHP'],
+    'powershell.png': ['SDKs & Tools', 'PowerShell'],
+    'python.png': ['SDKs & Tools', 'Python'],
+    'rds.png': ['Database', 'Amazon RDS'],
+    'redshift.png': ['Database', 'Amazon Redshift'],
+    'route53.png': ['Compute & Networking', 'Amazon Route 53'],
+    'ruby.png': ['SDKs & Tools', 'Ruby'],
+    's3.png': ['Storage & CDN', 'Amazon S3'],
+    'ses.png': ['Application Services', 'Amazon SES'],
+    'sns.png': ['Application Services', 'Amazon SNS'],
+    'sqs.png': ['Application Services', 'Amazon SQS'],
+    'storage-gateway.png': ['Storage & CDN', 'Amazon Storage Gateway'],
+    'swf.png': ['Application Services', 'Amazon SWF'],
+    'transcoding.png': ['Application Services', 'Amazon Elastic Transcoder'],
+    'visual-studio.png': ['SDKs & Tools', 'Visual Studio'],
+    'vpc.png': ['Compute & Networking', 'Amazon VPC']
+};
+
+// Pulls off the next image to tag mapping in the above map, and
+// processes all of the tags for that image.
+function processImage() {
+
+    // If there aren't any images left, we're done (pending any in-flight requests)
+    if (Object.keys(images).length === 0) {
+        console.log("*** Finished tagging all images ***");
+        return;
+    }
+
+    // Get the first image and its tags
+    var image = Object.keys(images)[0];
+    var tags = images[image];
+    delete images[image];
+
+    // Random vote count for each image...kind of.
+    voteCount = ("dynamodb.png" == image) ? 1000 : Math.floor((Math.random() * 20) + 80);
+
+    // Always tag images with 'Amazon Web Services'
+    tags.push('Amazon Web Services');
+
+    // Submit the requests in parallel and wait for them to complete
+    inFlightRequests = tags.length;
+
+    // Update the Image item to include a vote count
+    docClient.update({
+        TableName: 'Image',
+        Key: {
+            Id: image,
+        },
+        UpdateExpression: 'ADD VoteCount :voteCount',
+        ExpressionAttributeValues: {
+            ':voteCount': voteCount
+        }
+    }).on('complete', function (response) {
+        var image = response.request.params.Key.ImageId;
+        if (response.error) {
+            console.log("ERROR with updating vote count for image " + image + ": " + err);
+        } else {
+            console.log("Updated VoteCount for " + image);
+        }
+        inFlightRequests--;
+        if(inFlightRequests === 0) {
+            console.log("Done with writes for image " + image);
+            processImage();
+        }
+    }).send();
+
+    // Now insert a new tag item for each ImageTag relationship
+    for (i = 0; i < tags.length; i++) {
+        var tag = tags[i];
+        var imageId = image;
+
+        // Write the ImageTag item for this image+tag combination
+        docClient.put({
+            TableName: 'ImageTag',
+            Item: {
+                Tag: tag,
+                ImageId: imageId,
+                VoteCount: voteCount,
+            }
+        }, function (err, data) {
+            if (err) {
+                console.log("ERROR with tagging " + imageId + " with " + tag + ": " + err);
+            } else {
+                console.log("Tagged " + imageId + " with " + tag);
+            }
+            inFlightRequests--;
+            if(inFlightRequests === 0) {
+                console.log("Done with writes for image " + imageId);
+                processImage();
+            }
+        }); // FIXME disregard this style warning. Working on disabling that feature of editor.
+    }
+}
+
+// Kick off the process
+processImage();
+
+//**********************OUTPUT**********************//
+Updated VoteCount for undefined
+Tagged android.png with Amazon Web Services
+Tagged android.png with Amazon Web Services
+Done with writes for image android.png
+Tagged android.png with Amazon Web Services
+Updated VoteCount for undefined
+Tagged appstream.png with Amazon Web Services
+Done with writes for image appstream.png
+Tagged appstream.png with Amazon Web Services
+Tagged appstream.png with Amazon Web Services
+Tagged cli.png with Amazon Web Services
+Done with writes for image cli.png
+Updated VoteCount for undefined
+Tagged cli.png with Amazon Web Services
+Tagged cli.png with Amazon Web Services
+Done with writes for image cli.png
+Tagged cloudformation.png with Amazon Web Services
+Updated VoteCount for undefined
+Tagged cloudformation.png with Amazon Web Services
+Done with writes for image cloudformation.png
+Tagged cloudformation.png with Amazon Web Services
+Updated VoteCount for undefined
+Tagged cloudfront.png with Amazon Web Services
+Done with writes for image cloudfront.png
+Tagged cloudfront.png with Amazon Web Services
+Updated VoteCount for undefined
+Tagged cloudfront.png with Amazon Web Services
+Done with writes for image cloudfront.png
+Tagged cloudsearch.png with Amazon Web Services
+Tagged cloudsearch.png with Amazon Web Services
+Updated VoteCount for undefined
+Done with writes for image undefined
+Tagged cloudsearch.png with Amazon Web Services
+Tagged cloudtrail.png with Amazon Web Services
+Tagged cloudtrail.png with Amazon Web Services
+Done with writes for image cloudtrail.png
+Updated VoteCount for undefined
+Tagged cloudtrail.png with Amazon Web Services
+Tagged cloudwatch.png with Amazon Web Services
+Done with writes for image cloudwatch.png
+Tagged cloudwatch.png with Amazon Web Services
+Updated VoteCount for undefined
+Tagged cloudwatch.png with Amazon Web Services
+Done with writes for image cloudwatch.png
+Tagged data-pipeline.png with Amazon Web Services
+Tagged data-pipeline.png with Amazon Web Services
+Updated VoteCount for undefined
+Done with writes for image undefined
+Tagged data-pipeline.png with Amazon Web Services
+Tagged direct-connect.png with Amazon Web Services
+Tagged direct-connect.png with Amazon Web Services
+Done with writes for image direct-connect.png
+Updated VoteCount for undefined
+Tagged direct-connect.png with Amazon Web Services
+Tagged dotnet.png with Amazon Web Services
+Done with writes for image dotnet.png
+Tagged dotnet.png with Amazon Web Services
+Updated VoteCount for undefined
+Tagged dotnet.png with Amazon Web Services
+Done with writes for image dotnet.png
+Tagged dynamodb.png with Amazon Web Services
+Tagged dynamodb.png with Amazon Web Services
+Updated VoteCount for undefined
+Done with writes for image undefined
+Tagged dynamodb.png with Amazon Web Services
+Tagged ec2.png with Amazon Web Services
+Tagged ec2.png with Amazon Web Services
+Done with writes for image ec2.png
+Updated VoteCount for undefined
+Tagged ec2.png with Amazon Web Services
+Tagged eclipse.png with Amazon Web Services
+Done with writes for image eclipse.png
+Tagged eclipse.png with Amazon Web Services
+Updated VoteCount for undefined
+Tagged eclipse.png with Amazon Web Services
+Done with writes for image eclipse.png
+Tagged elasticache.png with Amazon Web Services
+Tagged elasticache.png with Amazon Web Services
+Updated VoteCount for undefined
+Done with writes for image undefined
+Tagged elasticache.png with Amazon Web Services
+Tagged elastic-beanstalk.png with Amazon Web Services
+Tagged elastic-beanstalk.png with Amazon Web Services
+Done with writes for image elastic-beanstalk.png
+Updated VoteCount for undefined
+Tagged elastic-beanstalk.png with Amazon Web Services
+Tagged elb.png with Amazon Web Services
+Done with writes for image elb.png
+Tagged elb.png with Amazon Web Services
+Updated VoteCount for undefined
+Tagged elb.png with Amazon Web Services
+Done with writes for image elb.png
+Tagged emr.png with Amazon Web Services
+Tagged emr.png with Amazon Web Services
+Updated VoteCount for undefined
+Done with writes for image undefined
+Tagged emr.png with Amazon Web Services
+Tagged glacier.png with Amazon Web Services
+Tagged glacier.png with Amazon Web Services
+Done with writes for image glacier.png
+Updated VoteCount for undefined
+Tagged glacier.png with Amazon Web Services
+Tagged iam.png with Amazon Web Services
+Done with writes for image iam.png
+Tagged iam.png with Amazon Web Services
+Updated VoteCount for undefined
+Tagged iam.png with Amazon Web Services
+Done with writes for image iam.png
+Tagged ios.png with Amazon Web Services
+Tagged ios.png with Amazon Web Services
+Updated VoteCount for undefined
+Done with writes for image undefined
+Tagged ios.png with Amazon Web Services
+Tagged java.png with Amazon Web Services
+Tagged java.png with Amazon Web Services
+Done with writes for image java.png
+Updated VoteCount for undefined
+Tagged java.png with Amazon Web Services
+Tagged kinesis.png with Amazon Web Services
+Done with writes for image kinesis.png
+Tagged kinesis.png with Amazon Web Services
+Updated VoteCount for undefined
+Tagged kinesis.png with Amazon Web Services
+Done with writes for image kinesis.png
+Tagged nodejs.png with Amazon Web Services
+Tagged nodejs.png with Amazon Web Services
+Updated VoteCount for undefined
+Done with writes for image undefined
+Tagged nodejs.png with Amazon Web Services
+Tagged opsworks.png with Amazon Web Services
+Tagged opsworks.png with Amazon Web Services
+Done with writes for image opsworks.png
+Updated VoteCount for undefined
+Tagged opsworks.png with Amazon Web Services
+Tagged php.png with Amazon Web Services
+Done with writes for image php.png
+Tagged php.png with Amazon Web Services
+Updated VoteCount for undefined
+Tagged php.png with Amazon Web Services
+Done with writes for image php.png
+Tagged powershell.png with Amazon Web Services
+Tagged powershell.png with Amazon Web Services
+Updated VoteCount for undefined
+Done with writes for image undefined
+Tagged powershell.png with Amazon Web Services
+Tagged python.png with Amazon Web Services
+Tagged python.png with Amazon Web Services
+Done with writes for image python.png
+Updated VoteCount for undefined
+Tagged python.png with Amazon Web Services
+Tagged rds.png with Amazon Web Services
+Done with writes for image rds.png
+Tagged rds.png with Amazon Web Services
+Tagged rds.png with Amazon Web Services
+Updated VoteCount for undefined
+Done with writes for image undefined
+Tagged redshift.png with Amazon Web Services
+Tagged redshift.png with Amazon Web Services
+Updated VoteCount for undefined
+Done with writes for image undefined
+Tagged redshift.png with Amazon Web Services
+Tagged route53.png with Amazon Web Services
+Tagged route53.png with Amazon Web Services
+Done with writes for image route53.png
+*** Finished tagging all images ***
+Updated VoteCount for undefined
+Tagged route53.png with Amazon Web Services
+Tagged ruby.png with Amazon Web Services
+Tagged ruby.png with Amazon Web Services
+Updated VoteCount for undefined
+Tagged ruby.png with Amazon Web Services
+Tagged s3.png with Amazon Web Services
+Tagged s3.png with Amazon Web Services
+Updated VoteCount for undefined
+Tagged s3.png with Amazon Web Services
+Tagged ses.png with Amazon Web Services
+Tagged ses.png with Amazon Web Services
+Updated VoteCount for undefined
+Tagged ses.png with Amazon Web Services
+Tagged sns.png with Amazon Web Services
+Tagged sns.png with Amazon Web Services
+Updated VoteCount for undefined
+Tagged sns.png with Amazon Web Services
+Tagged sqs.png with Amazon Web Services
+Tagged sqs.png with Amazon Web Services
+Updated VoteCount for undefined
+Tagged sqs.png with Amazon Web Services
+Tagged storage-gateway.png with Amazon Web Services
+Tagged storage-gateway.png with Amazon Web Services
+Updated VoteCount for undefined
+Tagged storage-gateway.png with Amazon Web Services
+Tagged swf.png with Amazon Web Services
+Tagged swf.png with Amazon Web Services
+Updated VoteCount for undefined
+Tagged swf.png with Amazon Web Services
+Tagged transcoding.png with Amazon Web Services
+Tagged transcoding.png with Amazon Web Services
+Updated VoteCount for undefined
+Tagged transcoding.png with Amazon Web Services
+Tagged visual-studio.png with Amazon Web Services
+Tagged visual-studio.png with Amazon Web Services
+Updated VoteCount for undefined
+Tagged visual-studio.png with Amazon Web Services
+Tagged vpc.png with Amazon Web Services
+Tagged vpc.png with Amazon Web Services
+Tagged vpc.png with Amazon Web Services
+
+
+QUERIES !
+
+1.
+
+// Queries for all items in the ImageTag table for images with the tag 'Database'
+var params = {
+    TableName: 'ImageTag',
+    KeyConditionExpression: 'Tag = :db',
+    ExpressionAttributeValues: {
+        ':db' : 'Database'
+    }
+};
+console.log("Querying the ImageTag table for all images with the tag 'Database'");
+docClient.query(params).eachPage(function(err, data) {
+    if (err) ppJson(err); // an error occurred
+    else if (data) ppJson(data); // successful response
+});
+
+//**********************OUTPUT**********************//
+Querying the ImageTag table for all images with the tag 'Database'
+
+    "Items" [ 
+        0: { 
+            "ImageId":"dynamodb.png"
+            "VoteCount":1000
+            "Tag":"Database"
+        1: { 
+            "ImageId":"elasticache.png"
+            "VoteCount":87
+            "Tag":"Database"
+        2: { 
+            "ImageId":"rds.png"
+            "VoteCount":98
+            "Tag":"Database"
+        3: { 
+            "ImageId":"redshift.png"
+            "VoteCount":99
+            "Tag":"Database"
+    "Count":4
+    "ScannedCount":4
+
+
+2.
+// Queries ImageTag's VoteCount index to get up to 5 images with the 'Database' tag, ordered by popularity
+var params = {
+    TableName: 'ImageTag',
+    IndexName: 'VoteCount-index',
+    KeyConditionExpression: 'Tag = :db',
+    ExpressionAttributeValues: {
+        ':db' : 'Database'
+    },
+    Limit: 5,
+    ScanIndexForward: false
+};
+console.log("Querying the ImageTag table's VoteCount-index "
+    + "for up to 5 images with the tag 'Database', ordered by VoteCount (descending)");
+docClient.query(params, function(err, data) {
+    if (err) ppJson(err); // an error occurred
+    else if (data) ppJson(data); // successful response
+});
+
+//**********************OUTPUT**********************//
+Querying the ImageTag table's VoteCount-index for up to 5 images with the tag 'Database', ordered by VoteCount (descending)
+=> 
+
+    "Items" [ 
+        0: { 
+            "ImageId":"dynamodb.png"
+            "VoteCount":1000
+            "Tag":"Database"
+        1: { 
+            "ImageId":"redshift.png"
+            "VoteCount":99
+            "Tag":"Database"
+        2: { 
+            "ImageId":"rds.png"
+            "VoteCount":98
+            "Tag":"Database"
+        3: { 
+            "ImageId":"elasticache.png"
+            "VoteCount":87
+            "Tag":"Database"
+    "Count":4
+    "ScannedCount":4
+
+
+3.
+// Queries ImageTag's ImageId index to get all of the tags for the image 'dynamodb.png'
+var params = {
+    TableName: 'ImageTag',
+    IndexName: 'ImageId-index',
+    KeyConditionExpression: 'ImageId = :png',
+    ExpressionAttributeValues: {
+        ':png': 'dynamodb.png'
+    }
+};
+console.log("Querying the ImageTag table's ImageId-index all tags for the image 'dynamodb.png'");
+docClient.query(params).eachPage(function(err, data) {
+    if (err) ppJson(err); // an error occurred
+    else if (data) ppJson(data); // successful response
+});
+
+
+//**********************OUTPUT**********************//
+Querying the ImageTag table's ImageId-index all tags for the image 'dynamodb.png'
+
+    "Items" [ 
+        0: { 
+            "ImageId":"dynamodb.png"
+            "Tag":"Amazon DynamoDB"
+        1: { 
+            "ImageId":"dynamodb.png"
+            "Tag":"Amazon Web Services"
+        2: { 
+            "ImageId":"dynamodb.png"
+            "Tag":"Database"
+    "Count":3
+    "ScannedCount":3
+
+4.
+// Queries for all items in the ImageTag table for images with the tag 'Database'
+var params = {
+    TableName: 'ImageTag',
+    KeyConditionExpression: 'Tag = :mgmt',
+    ExpressionAttributeValues: {
+        ':mgmt' : 'Analytics'
+    }
+};
+console.log("Querying the ImageTag table for all images with the tag 'Database'");
+docClient.query(params).eachPage(function(err, data) {
+    if (err) ppJson(err); // an error occurred
+    else if (data) ppJson(data); // successful response
+});
+
+//**********************OUTPUT**********************//
+Querying the ImageTag table for all images with the tag 'Database'
+
+    "Items" [ 
+        0: { 
+            "ImageId":"data-pipeline.png"
+            "VoteCount":89
+            "Tag":"Analytics"
+        1: { 
+            "ImageId":"emr.png"
+            "VoteCount":91
+            "Tag":"Analytics"
+        2: { 
+            "ImageId":"kinesis.png"
+            "VoteCount":93
+            "Tag":"Analytics"
+    "Count":3
+    "ScannedCount":3
+
+5.
+ // Queries for all items in the ImageTag table for images with the tag 'Database'
+var params = {
+    TableName: 'ImageTag',
+    KeyConditionExpression: 'Tag = :dbandmgmt',
+    ExpressionAttributeValues: {
+        ':dbandmgmt' : 'Deployment & Management'
+    }
+};
+console.log("Querying the ImageTag table for all images with the tag 'Database'");
+docClient.query(params).eachPage(function(err, data) {
+    if (err) ppJson(err); // an error occurred
+    else if (data) ppJson(data); // successful response
+});
+
+//**********************OUTPUT**********************//
+Querying the ImageTag table for all images with the tag 'Database'
+
+    "Items" [ 
+        0: { 
+            "ImageId":"cloudformation.png"
+            "VoteCount":80
+            "Tag":"Deployment & Management"
+        1: { 
+            "ImageId":"cloudtrail.png"
+            "VoteCount":87
+            "Tag":"Deployment & Management"
+        2: { 
+            "ImageId":"cloudwatch.png"
+            "VoteCount":84
+            "Tag":"Deployment & Management"
+        3: { 
+            "ImageId":"elastic-beanstalk.png"
+            "VoteCount":90
+            "Tag":"Deployment & Management"
+        4: { 
+            "ImageId":"iam.png"
+            "VoteCount":80
+            "Tag":"Deployment & Management"
+        5: { 
+            "ImageId":"opsworks.png"
+            "VoteCount":89
+            "Tag":"Deployment & Management"
+    "Count":6
+    "ScannedCount":6
+
+
+6.
+// Queries ImageTag's VoteCount index to get up to 10 images with the 'Database' tag, ordered by popularity
+var params = {
+    TableName: 'ImageTag',
+    IndexName: 'VoteCount-index',
+    KeyConditionExpression: 'Tag = :mgmt',
+    ExpressionAttributeValues: {
+        ':mgmt' : 'Analytics'
+    },
+    Limit: 10,
+    ScanIndexForward: false
+};
+console.log("Querying the ImageTag table's VoteCount-index "
+    + "for up to 10 images with the tag 'Analytics', ordered by VoteCount (descending)");
+docClient.query(params, function(err, data) {
+    if (err) ppJson(err); // an error occurred
+    else if (data) ppJson(data); // successful response
+});
+
+//**********************OUTPUT**********************//
+Querying the ImageTag table's VoteCount-index for up to 10 images with the tag 'Analytics', ordered by VoteCount (descending)
+=> 
+
+    "Items" [ 
+        0: { 
+            "ImageId":"kinesis.png"
+            "VoteCount":93
+            "Tag":"Analytics"
+        1: { 
+            "ImageId":"emr.png"
+            "VoteCount":91
+            "Tag":"Analytics"
+        2: { 
+            "ImageId":"data-pipeline.png"
+            "VoteCount":89
+            "Tag":"Analytics"
+    "Count":3
+    "ScannedCount":3
+
+
+7.
+// Queries ImageTag's VoteCount index to get up to 10 images with the 'Database' tag, ordered by popularity
+var params = {
+    TableName: 'ImageTag',
+    IndexName: 'VoteCount-index',
+    KeyConditionExpression: 'Tag = :depandmgmt',
+    ExpressionAttributeValues: {
+        ':depandmgmt' : 'Deployment & Management'
+    },
+    Limit: 6,
+    ScanIndexForward: false
+};
+console.log("Querying the ImageTag table's VoteCount-index "
+    + "for up to 6 images with the tag 'Deployment & Management', ordered by VoteCount (descending)");
+docClient.query(params, function(err, data) {
+    if (err) ppJson(err); // an error occurred
+    else if (data) ppJson(data); // successful response
+});
+
+
+//**********************OUTPUT**********************//
+Querying the ImageTag table's VoteCount-index for up to 6 images with the tag 'Deployment & Management', ordered by VoteCount (descending)
+=> 
+
+    "Items" [ 
+        0: { 
+            "ImageId":"elastic-beanstalk.png"
+            "VoteCount":90
+            "Tag":"Deployment & Management"
+        1: { 
+            "ImageId":"opsworks.png"
+            "VoteCount":89
+            "Tag":"Deployment & Management"
+        2: { 
+            "ImageId":"cloudtrail.png"
+            "VoteCount":87
+            "Tag":"Deployment & Management"
+        3: { 
+            "ImageId":"cloudwatch.png"
+            "VoteCount":84
+            "Tag":"Deployment & Management"
+        4: { 
+            "ImageId":"iam.png"
+            "VoteCount":80
+            "Tag":"Deployment & Management"
+        5: { 
+            "ImageId":"cloudformation.png"
+            "VoteCount":80
+            "Tag":"Deployment & Management"
+    "Count":6
+    "ScannedCount":6
+    "LastEvaluatedKey" { 
+        "ImageId":"cloudformation.png"
+        "VoteCount":80
+        "Tag":"Deployment & Management"
+
+8.
+// Queries ImageTag's ImageId index to get all of the tags for the image 'dynamodb.png'
+var params = {
+    TableName: 'ImageTag',
+    IndexName: 'ImageId-index',
+    KeyConditionExpression: 'ImageId = :png',
+    ExpressionAttributeValues: {
+        ':png': 'python.png'
+    }
+};
+console.log("Querying the ImageTag table's ImageId-index all tags for the image 'python.png'");
+docClient.query(params).eachPage(function(err, data) {
+    if (err) ppJson(err); // an error occurred
+    else if (data) ppJson(data); // successful response
+});
+
+
+//**********************OUTPUT**********************//
+Querying the ImageTag table's ImageId-index all tags for the image 'python.png'
+
+    "Items" [ 
+        0: { 
+            "ImageId":"python.png"
+            "Tag":"Amazon Web Services"
+        1: { 
+            "ImageId":"python.png"
+            "Tag":"Python"
+        2: { 
+            "ImageId":"python.png"
+            "Tag":"SDKs & Tools"
+    "Count":3
+    "ScannedCount":3
+
+
+9.
+// Queries ImageTag's ImageId index to get all of the tags for the image 'dynamodb.png'
+var params = {
+    TableName: 'ImageTag',
+    IndexName: 'ImageId-index',
+    KeyConditionExpression: 'ImageId = :png',
+    ExpressionAttributeValues: {
+        ':png': 'ios.png'
+    }
+};
+console.log("Querying the ImageTag table's ImageId-index all tags for the image 'ios.png'");
+docClient.query(params).eachPage(function(err, data) {
+    if (err) ppJson(err); // an error occurred
+    else if (data) ppJson(data); // successful response
+});
+
+//**********************OUTPUT**********************//
+Querying the ImageTag table's ImageId-index all tags for the image 'ios.png'
+
+    "Items" [ 
+        0: { 
+            "ImageId":"ios.png"
+            "Tag":"Amazon Web Services"
+        1: { 
+            "ImageId":"ios.png"
+            "Tag":"SDKs & Tools"
+        2: { 
+            "ImageId":"ios.png"
+            "Tag":"iOS"
+    "Count":3
+    "ScannedCount":3
+
+
+10.
+// Queries ImageTag's ImageId index to get all of the tags for the image 'dynamodb.png'
+var params = {
+    TableName: 'ImageTag',
+    IndexName: 'ImageId-index',
+    KeyConditionExpression: 'ImageId = :png',
+    ExpressionAttributeValues: {
+        ':png': 'android.png'
+    }
+};
+console.log("Querying the ImageTag table's ImageId-index all tags for the image 'android.png'");
+docClient.query(params).eachPage(function(err, data) {
+    if (err) ppJson(err); // an error occurred
+    else if (data) ppJson(data); // successful response
+});
+
+//**********************OUTPUT**********************//
+Querying the ImageTag table's ImageId-index all tags for the image 'android.png'
+
+    "Items" [ 
+        0: { 
+            "ImageId":"android.png"
+            "Tag":"Amazon Web Services"
+        1: { 
+            "ImageId":"android.png"
+            "Tag":"Android"
+        2: { 
+            "ImageId":"android.png"
+            "Tag":"SDKs & Tools"
+    "Count":3
+    "ScannedCount":3

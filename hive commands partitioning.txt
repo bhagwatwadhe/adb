@@ -1,0 +1,46 @@
+set hadoop sbin path
+start-dfs.cmd
+start-yarn.cmd       //start-all
+set derby bin path
+startNetworkServer-h 0.0.0.0
+
+open new cmd admin
+set hive path
+hive
+
+
+
+
+
+
+
+
+set hive.exec.dynamic.partition.mode=nonstrict;
+
+
+CREATE TABLE IF NOT EXISTS tab1(
+     empid INT,fn STRING,title STRING,val INT,val1 INT,val2 INT,val3 INT, laptop STRING,val4 INT) 
+     PARTITIONED BY ( state STRING)
+     ROW FORMAT DELIMITED
+     FIELDS TERMINATED BY ','
+     STORED AS TEXTFILE;
+
+
+LOAD DATA LOCAL INPATH 'C:\data2.csv' OVERWRITE INTO TABLE tab1 PARTITION (state='Nunavat');
+
+
+
+CREATE EXTERNAL TABLE IF NOT EXISTS tab2(
+     empid INT,fname STRING, Title STRING,val INT,val1 INT,val2 INT,val3 INT,
+     State STRING, Laptop STRING,val4 INT)
+     COMMENT 'Employee Names'
+     ROW FORMAT DELIMITED
+     FIELDS TERMINATED BY ','
+     STORED AS TEXTFILE;
+
+
+LOAD DATA  INPATH '/user/hive/warehouse/mrunmayee.db/tab1/state=Nunavat'
+      INTO TABLE tab2;
+
+
+Select * from tab2 limit 5;

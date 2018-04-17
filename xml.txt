@@ -1,0 +1,78 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<!-- New XML document created with EditiX XML Editor (http://www.editix.com) at Mon Apr 16 12:42:18 IST 2018 -->
+
+<employee_info>
+<employee>
+
+<first_name>Raju</first_name>
+<last_name>Shevale</last_name>
+<city>pune</city>
+<age>23</age>
+<post>soft_dev</post>
+<salary>30000</salary>
+</employee>
+
+<employee>
+<first_name>ganya</first_name>
+<last_name>panduranga</last_name>
+<city>Nampur</city>
+<post>shetkari</post>
+<salary>1,00,000</salary>
+</employee>
+
+<employee>
+<first_name>gangubai</first_name>
+<last_name>zingelaal</last_name>
+<city>kalvan</city>
+<post>chapati_sheknari</post>
+<salary>100</salary>
+</employee>
+
+<employee>
+<first_name>thomas</first_name>
+<last_name>johnson</last_name>
+<city>Newyork</city>
+<post>Dypervala</post>
+<salary>2,00,000</salary>
+</employee>
+
+<employee>
+<first_name>chintu</first_name>
+<last_name>pintu</last_name>
+<city>vaijapur</city>
+<post>gotya_khelnara</post>
+<salary>2</salary>
+</employee>
+</employee_info>
+
+
+1)
+for $x in doc("C:/Users/User/myProject/emp.xml")/employee_info/employee where $x/city="nampur" return ($x/first_name/text(),$x/last_name/text())
+
+
+2)for $x in doc("emp.xml")/employee_info/employee where $x/salary>30000 order by $x/age return($x/first_name/text(),$x/age/text(),$x/salary/text())
+
+
+3)for $x in doc("emp.xml")/employee_info/employee where $x/age>21 return($x/first_name/text(),$x/last_name/text(),$x/age/text())
+
+
+4)let $doc:=doc("emp.xml") for $d in $doc/employee_info/employee where $d/post="soft_dev" return($d/first_name/text(),$d/salary/text())
+
+
+5)for $x in doc("emp.xml")/employee_info/employee[last()] return($x/first_name/text(),$x/last_name/text(),$x/age/text())
+
+
+6)for $x in doc("emp.xml")/employee_info/employee[salary>100] return($x/first_name/text(),$x/last_name/text())
+
+
+7)for $x in doc("emp.xml")/employee_info/employee[position()>1] return($x/first_name/text(),$x/last_name/text())
+
+
+8)for $x in doc("emp.xml")//node()[@employee or child::post] return($x/first_name/text(),$x/last_name/text(),$x/post/text())
+
+
+9)for $x in doc("emp.xml")/employee_info/node()/descendant-or-self::node() return($x/node()/tetx())
+
+
+10)for $x in doc("emp.xml")/employee_info/employee/following-sibling::employee return($x/first_name/text())
